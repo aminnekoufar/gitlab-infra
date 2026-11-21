@@ -80,7 +80,8 @@ gitlab_apt_mirror_line: "deb [trusted=yes] http://mirror.intra.local/gitlab jamm
 ```bash
 # روی ماشین کنترل داخل شبکه ایزوله
 tar -xzf gitlab-infra.tar.gz && cd gitlab-infra
-make deps
+make deps          # فقط ansible-core + jinja2 از requirements.txt
+make deps-dev      # + ansible-lint (اختیاری)
 
 # ۱. آدرس‌ها
 vi inventories/prod/hosts.yml

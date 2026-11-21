@@ -1,0 +1,15 @@
+---
+# وابستگی‌های Ansible Galaxy — عمداً خالی است.
+#
+# همهٔ ماژول‌ها از ansible.builtin استفاده می‌کنند (apt, template, copy, service, uri,
+# command, unarchive, assert, include_tasks). بنابراین روی کنترل‌نود ایزوله لازم نیست
+# هیچ‌چیز از galaxy نصب شود و این فایل هم فقط برای مستندسازی و اجرای بی‌خطر
+# `ansible-galaxy install -r requirements.yml` است.
+#
+# اگر روزی چیزی لازم شد، این‌جا اضافه کن و روی ماشین با دسترسی (یا از فایل .tar.gz
+# در offline/) نصب کن:
+#   collections:
+#     - name: community.general
+#       version: ">=10.0.0"
+collections: []
+roles: []

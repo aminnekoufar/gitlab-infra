@@ -126,6 +126,9 @@ make deploy
 ```
 gitlab-infra/
 ├─ ansible.cfg                    تنظیمات ansible (inventory پیش‌فرض، roles_path، pipelining)
+├─ requirements.txt               وابستگی کنترل‌نود: ansible-core + jinja2 (pin شده)
+├─ requirements-dev.txt           + ansible-lint
+├─ requirements.yml               وابستگی galaxy — عمداً خالی (فقط ansible.builtin)
 ├─ site.yml                       سه PLAY، به ترتیب common → gitlab → runner
 ├─ Makefile                       دستورهای کوتاه: syntax, lint, render, deploy, gitlab, runner, bundle
 ├─ .ansible-lint                  قواعد نادیده‌گرفته‌شده + دلیلشان

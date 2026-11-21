@@ -4,7 +4,7 @@ APB    := $(VENV)/bin/ansible-playbook
 INV    := inventories/prod/hosts.yml
 VAULT  := --ask-vault-pass
 
-.PHONY: help venv deps syntax lint render ping check deploy common gitlab runner bundle vault-encrypt vault-edit health clean
+.PHONY: help venv deps deps-dev syntax lint render ping check deploy common gitlab runner bundle vault-encrypt vault-edit health clean
 
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN{FS=":.*?## "}{printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
@@ -12,8 +12,20 @@ help:
 venv: ## ساخت محیط پایتون
 	python3 -m venv $(VENV) || uv venv $(VENV)
 
-deps: venv ## نصب ansible
-	$(VENV)/bin/pip install -q --upgrade pip ansible-core jinja2
+deps: venv ## نصب وابستگی‌های کنترل‌نود از requirements.txt
+	@if command -v uv >/dev/null 2>&1; then \
+	  uv pip install --python $(VENV)/bin/python -q -r requirements.txt; \
+	else \
+	  $(VENV)/bin/python -m pip install -q --upgrade pip; \
+	  $(VENV)/bin/python -m pip install -q -r requirements.txt; \
+	fi
+
+deps-dev: deps ## نصب ابزار توسعه (ansible-lint)
+	@if command -v uv >/dev/null 2>&1; then \
+	  uv pip install --python $(VENV)/bin/python -q -r requirements-dev.txt; \
+	else \
+	  $(VENV)/bin/python -m pip install -q -r requirements-dev.txt; \
+	fi
 
 syntax: ## بررسی سینتکس playbook
 	$(APB) -i $(INV) site.yml --syntax-check

@@ -1,0 +1,5 @@
+# ابزار توسعه/بررسی — برای اجرای playbook لازم نیست
+# نصب: make deps-dev
+-r requirements.txt
+
+ansible-lint==26.11.0
