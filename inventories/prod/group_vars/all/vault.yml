@@ -1,0 +1,17 @@
+---
+# ⚠️ این فایل باید با ansible-vault رمز شود:  make vault-encrypt
+# مقادیر زیر فقط نمونه‌اند؛ قبل از اجرای واقعی عوضشان کن.
+
+# رمز کاربر root گیت‌لب (بعد از نصب به‌صورت idempotent ست می‌شود)
+vault_gitlab_root_password: "ChangeMe-Root-2026!"
+
+# توکن runner از نوع glrt-…
+# ساختش: GitLab > Admin Area > CI/CD > Runners > New instance runner
+#         یا در سطح پروژه/گروه. بعد از ساخت، توکن glrt- فقط یک بار نشان داده می‌شود.
+vault_gitlab_runner_token: "glrt-XXXXXXXXXXXXreplaceXXXXXXXXXXXX"
+
+# فقط اگر رجیستری داخلی لاگین لازم دارد (کل محتوای ~/.docker/config.json)
+vault_gitlab_runner_docker_config_json: ""
+
+# فقط اگر LDAP فعال کردی
+vault_gitlab_ldap_bind_password: ""

@@ -1,0 +1,28 @@
+---
+# ترتیب اجرا: baseline -> GitLab server -> Runner
+# اگر فقط یک سرور داری، همان هاست را در هر دو گروه gitlab و runners بگذار
+# (roleها ترتیب دارند و مشکلی پیش نمی‌آید).
+
+- name: Baseline (common)
+  hosts: all
+  become: true
+  gather_facts: true
+  tags: [common, always]
+  roles:
+    - common
+
+- name: GitLab CE server
+  hosts: gitlab
+  become: true
+  gather_facts: true
+  tags: [gitlab]
+  roles:
+    - role: gitlab_server
+
+- name: GitLab Runner
+  hosts: runners
+  become: true
+  gather_facts: true
+  tags: [runner]
+  roles:
+    - role: gitlab_runner

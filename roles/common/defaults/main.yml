@@ -1,0 +1,15 @@
+---
+common_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - openssh-server
+  - tzdata
+  - perl
+  - rsync
+  - chrony
+  - ufw
+  - python3-apt
+  - acl
+
+common_manage_hosts_file: true    # رکورد FQDN گیت‌لب را در /etc/hosts ثابت می‌کند (اگر DNS داخلی نداری مفید است)

@@ -1,0 +1,35 @@
+---
+# ---------- نصب ----------
+gitlab_runner_install_docker: true          # docker.io از مخزن داخلی اوبونتو
+gitlab_runner_docker_group: docker
+
+# ---------- اتصال به گیت‌لب ----------
+# توکن glrt- را در vault.yml بگذار (vault_gitlab_runner_token)
+gitlab_runner_url: "{{ gitlab_external_url }}"
+gitlab_runner_name: "{{ inventory_hostname }}-docker"
+gitlab_runner_concurrent: 4                   # برای ۲ vCPU / ۴GB
+gitlab_runner_check_interval: 0
+
+# ---------- executor ----------
+gitlab_runner_executor: docker
+gitlab_runner_default_image: "alpine:3.20"
+gitlab_runner_privileged: false               # فقط اگر docker build/dind لازم داری true کن
+gitlab_runner_volumes:
+  - "/cache"
+  # - "/var/run/docker.sock:/var/run/docker.sock"   # فقط اگر لازم داری (امنیت را کم می‌کند)
+gitlab_runner_shm_size: 0
+
+# با رجیستری داخلی: if-not-present = اگر ایمیج روی runner نبود از رجیستری می‌کشد.
+# اگر تگ‌ها mutable هستند (مثل :latest که بازنویسی می‌شود) → always
+gitlab_runner_pull_policy: if-not-present
+
+# ---------- رجیستری داخلی ----------
+# رجیستری HTTP (بدون TLS) باید در daemon.json declared شود
+gitlab_runner_docker_insecure_registries: []      # ["registry.intra.local:5000"]
+gitlab_runner_docker_registry_mirrors: []         # ["https://mirror.gcr.io"] (برای داکرهاب)
+# اعتبارنامه: کل محتوای ~/.docker/config.json را در vault بگذار
+# (vault_gitlab_runner_docker_config_json) — برای rجیستری نیازمند لاگین
+
+# کارهای همزمان زیاد در 4GB → محدودیت رم هر job
+gitlab_runner_memory_limit: ""                # مثلا "3g"
+gitlab_runner_cpu_shares: ""

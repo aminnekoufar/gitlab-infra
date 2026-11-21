@@ -1,0 +1,8 @@
+---
+- name: Reconfigure | gitlab
+  ansible.builtin.command: "{{ gitlab_ctl }} reconfigure"
+  register: gitlab_reconfigure
+  changed_when: true
+  # reconfigure روی یک VM کوچک ۲ تا ۵ دقیقه طول می‌کشد
+  async: 1800
+  poll: 15

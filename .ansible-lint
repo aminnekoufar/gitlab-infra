@@ -1,0 +1,11 @@
+---
+# قواعد غیرفعال‌شده و دلیلش
+skip_list:
+  # نام register/defaultها با پیشوند خود role شروع می‌شود (gitlab_*, runner_*, common_*)
+  # و تغییرشان فقط نویز است؛ قاعده در این پروژهٔ کوچک ارزش اضافه ندارد.
+  - var-naming
+  # توضیح فارسی در نام taskها عمدی است.
+  - name[casing]
+exclude_paths:
+  - offline/dist/
+  - .render/

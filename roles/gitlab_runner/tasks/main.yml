@@ -1,0 +1,92 @@
+---
+- name: Preflight | توکن runner
+  ansible.builtin.assert:
+    that:
+      - vault_gitlab_runner_token is defined
+      - vault_gitlab_runner_token | length > 20
+      - vault_gitlab_runner_token.startswith('glrt-')
+    fail_msg: >-
+      vault_gitlab_runner_token معتبر نیست. از GitLab 17 به بعد توکن registration قدیمی حذف شده؛
+      باید Runner را در UI بسازی و توکن glrt-… را در vault.yml بگذاری.
+    quiet: true
+
+- name: Preflight | توکن واقعی است (نه placeholder)
+  ansible.builtin.fail:
+    msg: >-
+      vault_gitlab_runner_token هنوز مقدار نمونه است. اول Runner را در GitLab بساز
+      (Admin Area > CI/CD > Runners > New instance runner)، توکن glrt- را در
+      inventories/prod/group_vars/all/vault.yml بگذار و دوباره اجرا کن.
+  when: "'XXXX' in vault_gitlab_runner_token or 'replace' in vault_gitlab_runner_token"
+
+- name: منبع پکیج | {{ gitlab_pkg_source }}
+  ansible.builtin.include_tasks: "repo-{{ gitlab_pkg_source }}.yml"
+
+- name: نصب | GitLab Runner نسخهٔ pin شده
+  ansible.builtin.apt:
+    name: "gitlab-runner={{ gitlab_runner_version }}"
+    state: present
+    update_cache: false
+  notify: restart gitlab-runner
+
+- name: Docker | نصب از مخزن داخلی اوبونتو
+  ansible.builtin.apt:
+    name: docker.io
+    state: present
+  when: gitlab_runner_install_docker
+
+- name: Docker | فعال‌سازی سرویس
+  ansible.builtin.systemd_service:
+    name: "{{ gitlab_runner_docker_service }}"
+    enabled: true
+    state: started
+  when: gitlab_runner_install_docker
+
+- name: Docker | پیکربندی رجیستری داخلی
+  ansible.builtin.include_tasks: docker-registry.yml
+  when: gitlab_runner_install_docker
+
+- name: Docker | عضویت کاربر gitlab-runner در گروه docker
+  ansible.builtin.user:
+    name: gitlab-runner
+    groups: "{{ gitlab_runner_docker_group }}"
+    append: true
+  when: gitlab_runner_install_docker
+  notify: restart gitlab-runner
+
+- name: پیکربندی | config.toml
+  ansible.builtin.template:
+    src: config.toml.j2
+    dest: "{{ gitlab_runner_config }}"
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+  notify: restart gitlab-runner
+
+- name: پیکربندی | اعمال فوری
+  ansible.builtin.meta: flush_handlers
+
+- name: تأیید | gitlab-runner verify
+  ansible.builtin.command: gitlab-runner verify
+  register: runner_verify
+  changed_when: false
+  failed_when: false
+
+- name: تأیید | نمایش وضعیت
+  ansible.builtin.debug:
+    msg: "{{ runner_verify.stdout_lines | default([]) + runner_verify.stderr_lines | default([]) }}"
+
+- name: تأیید | خطا در اتصال به GitLab
+  ansible.builtin.fail:
+    msg: >-
+      runner نتوانست به {{ gitlab_runner_url }} وصل شود. معمولاً یعنی:
+      (۱) توکن نامعتبر/باطل‌شده، (۲) DNS داخلی یا فایروال، (۳) گیت‌لب هنوز بالا نیامده.
+      خروجی: {{ runner_verify.stderr | default('') | truncate(400) }}
+  when: runner_verify.rc != 0
+
+- name: یادآوری | ایمیج‌های CI در محیط آفلاین
+  ansible.builtin.debug:
+    msg:
+      - "pull_policy = {{ gitlab_runner_pull_policy }} است؛ ایمیج‌ها باید از قبل روی runner موجود باشند:"
+      - "  docker load -i <image>.tar    (یا docker pull از registry آینه داخلی)"
+      - "ایمیج پیش‌فرض فعلی: {{ gitlab_runner_default_image }}"

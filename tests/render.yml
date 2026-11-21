@@ -1,0 +1,37 @@
+---
+# تست رندر تمپلیت‌ها بدون لمس سرور (connection: local)
+# اجرا:  .venv/bin/ansible-playbook -i inventories/prod/hosts.yml tests/render.yml
+- name: Render templates for validation
+  hosts: gitlab
+  connection: local
+  become: false
+  gather_facts: false
+  vars_files:
+    - ../roles/gitlab_server/defaults/main.yml
+    - ../roles/gitlab_runner/defaults/main.yml
+    - ../inventories/prod/group_vars/runners.yml
+    - ../inventories/prod/group_vars/all/vault.yml
+  tasks:
+    - name: mkdir
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../.render"
+        state: directory
+        mode: "0755"
+
+    - name: render gitlab.rb
+      ansible.builtin.template:
+        src: ../roles/gitlab_server/templates/gitlab.rb.j2
+        dest: "{{ playbook_dir }}/../.render/gitlab.rb"
+        mode: "0644"
+
+    - name: render daemon.json
+      ansible.builtin.template:
+        src: ../roles/gitlab_runner/templates/daemon.json.j2
+        dest: "{{ playbook_dir }}/../.render/daemon.json"
+        mode: "0644"
+
+    - name: render config.toml
+      ansible.builtin.template:
+        src: ../roles/gitlab_runner/templates/config.toml.j2
+        dest: "{{ playbook_dir }}/../.render/config.toml"
+        mode: "0644"

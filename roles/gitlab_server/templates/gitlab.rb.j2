@@ -1,0 +1,99 @@
+# =============================================================================
+# ساخته‌شده توسط Ansible (gitlab-infra) — دستی ویرایش نکن
+# تغییرات را در inventories/prod/group_vars/gitlab.yml بده
+# =============================================================================
+
+external_url '{{ gitlab_external_url }}'
+
+# ---------------------------- TLS / Nginx -----------------------------------
+letsencrypt['enable'] = false
+
+{% if gitlab_scheme == 'http' %}
+nginx['listen_port'] = 80
+nginx['listen_https'] = false
+{% else %}
+{% if gitlab_tls_cert | length > 0 %}
+nginx['ssl_certificate'] = "{{ gitlab_tls_cert }}"
+nginx['ssl_certificate_key'] = "{{ gitlab_tls_key }}"
+{% endif %}
+nginx['redirect_http_to_https'] = true
+{% endif %}
+
+nginx['client_max_body_size'] = '512m'
+nginx['gzip_enabled'] = true
+
+# ---------------------------- منابع (کوچک) ----------------------------------
+puma['worker_processes'] = {{ gitlab_puma_workers }}
+puma['min_threads'] = 1
+puma['max_threads'] = 4
+
+sidekiq['concurrency'] = {{ gitlab_sidekiq_concurrency }}
+
+postgresql['shared_buffers'] = "{{ gitlab_postgres_shared_buffers }}"
+postgresql['max_worker_processes'] = 8
+
+{% if not gitlab_prometheus_enable %}
+# مانیتورینگ در این مقیاس لازم نیست و ~1GB رم می‌خورد
+prometheus_monitoring['enable'] = false
+node_exporter['enable'] = false
+redis_exporter['enable'] = false
+postgres_exporter['enable'] = false
+gitlab_exporter['enable'] = false
+{% endif %}
+
+# ---------------------------- سرویس‌های بلااستفاده ---------------------------
+registry['enable'] = false
+gitlab_pages['enable'] = false
+mattermost['enable'] = false
+
+# ---------------------------- ایزوله‌سازی ------------------------------------
+# بدون اینترنت: هیچ ترافیک خروجی لازم نیست (egress را در فایروال هم ببند)
+gitlab_rails['usage_ping_enabled'] = false
+gitlab_rails['sentry_enabled'] = false
+gitlab_rails['gravatar_enabled'] = false
+gitlab_rails['time_zone'] = '{{ timezone }}'
+gitlab_rails['gitlab_shell_ssh_port'] = {{ gitlab_ssh_port }}
+
+# ---------------------------- بکاپ ------------------------------------------
+gitlab_rails['manage_backup_path'] = true
+gitlab_rails['backup_path'] = "{{ gitlab_backup_path }}"
+gitlab_rails['backup_keep_time'] = {{ gitlab_backup_keep_time }}
+gitlab_rails['backup_archive_permissions'] = 0o640
+
+# ---------------------------- ایمیل -----------------------------------------
+gitlab_rails['gitlab_email_from'] = '{{ gitlab_email_from }}'
+gitlab_rails['gitlab_email_reply_to'] = '{{ gitlab_email_reply_to }}'
+{% if gitlab_smtp_enable %}
+gitlab_rails['smtp_enable'] = true
+gitlab_rails['smtp_address'] = "{{ gitlab_smtp_address }}"
+gitlab_rails['smtp_port'] = {{ gitlab_smtp_port }}
+gitlab_rails['smtp_user_name'] = "{{ gitlab_smtp_user_name }}"
+gitlab_rails['smtp_password'] = "{{ gitlab_smtp_password }}"
+gitlab_rails['smtp_domain'] = "{{ gitlab_smtp_domain }}"
+gitlab_rails['smtp_authentication'] = "login"
+gitlab_rails['smtp_enable_starttls_auto'] = {{ 'true' if gitlab_smtp_tls else 'false' }}
+gitlab_rails['smtp_tls'] = {{ 'true' if gitlab_smtp_tls else 'false' }}
+{% else %}
+gitlab_rails['smtp_enable'] = false
+{% endif %}
+
+# ---------------------------- LDAP (اختیاری) --------------------------------
+{% if gitlab_ldap_enable %}
+gitlab_rails['ldap_enabled'] = true
+gitlab_rails['prevent_ldap_sign_in'] = false
+gitlab_rails['ldap_servers'] = YAML.load <<-'EOS'
+  main:
+    label: 'LDAP'
+    host: '{{ gitlab_ldap_host }}'
+    port: {{ gitlab_ldap_port }}
+    uid: '{{ gitlab_ldap_uid }}'
+    base: '{{ gitlab_ldap_base }}'
+    bind_dn: '{{ gitlab_ldap_bind_dn }}'
+    password: '{{ vault_gitlab_ldap_bind_password | default("") }}'
+    encryption: 'plain'
+    active_directory: true
+    allow_username_or_email_login: true
+    block_auto_created_users: false
+    user_filter: ''
+EOS
+{% endif %}

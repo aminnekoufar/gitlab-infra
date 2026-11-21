@@ -1,0 +1,51 @@
+---
+- name: Preflight | باندل آفلاین موجود است
+  ansible.builtin.stat:
+    path: "{{ offline_bundle_src }}"
+  register: runner_bundle_stat
+  delegate_to: localhost
+  become: false
+  check_mode: false
+
+- name: Preflight | خطای نبود باندل
+  ansible.builtin.fail:
+    msg: >-
+      باندل پیدا نشد: {{ offline_bundle_src }} — اول offline/build-bundle.sh را اجرا کن،
+      یا gitlab_pkg_source=mirror بگذار و از مخزن apt داخلی استفاده کن.
+  when: not runner_bundle_stat.stat.exists
+
+- name: مخزن فایلی | ایجاد دایرکتوری
+  ansible.builtin.file:
+    path: "{{ offline_repo_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: مخزن فایلی | استخراج فقط پکیج runner
+  ansible.builtin.unarchive:
+    src: "{{ offline_bundle_src }}"
+    dest: "{{ offline_repo_dir }}"
+    remote_src: false
+    extra_opts:
+      - "--wildcards"
+      - "pool/*/g/gitlab-runner/*"
+      - "pool/*/g/gitlab-runner-helper-images/*"
+      - "Packages.gz"
+  register: runner_extract
+  changed_when: runner_extract.changed
+
+- name: مخزن فایلی | سورس apt محلی
+  ansible.builtin.copy:
+    dest: "{{ gitlab_runner_apt_sources_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # ساخته‌شده توسط Ansible (gitlab-infra) - مخزن آفلاین
+      deb [trusted=yes] {{ offline_repo_uri }} ./
+
+- name: مخزن فایلی | به‌روزرسانی کش apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0

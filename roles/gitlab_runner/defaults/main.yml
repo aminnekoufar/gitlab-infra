@@ -1,0 +1,4 @@
+---
+gitlab_runner_config: /etc/gitlab-runner/config.toml
+gitlab_runner_apt_sources_file: /etc/apt/sources.list.d/gitlab-offline.list
+gitlab_runner_docker_service: docker

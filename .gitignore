@@ -1,0 +1,7 @@
+.venv/
+offline/dist/
+.render/
+*.retry
+.vault-pass
+*.tar.gz
+.kilo/

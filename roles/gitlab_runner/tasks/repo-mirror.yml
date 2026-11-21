@@ -1,0 +1,62 @@
+---
+- name: Preflight | خط منابع مخزن داخلی تنظیم شده است
+  ansible.builtin.assert:
+    that:
+      - gitlab_apt_mirror_line | length > 0
+    fail_msg: >-
+      gitlab_pkg_source=mirror است ولی gitlab_apt_mirror_line خالی است.
+      در inventories/prod/group_vars/all/main.yml یک خط کامل منابع بگذار، مثلا:
+      "deb [trusted=yes] http://mirror.intra.local/gitlab jammy main"
+    quiet: true
+
+- name: مخزن داخلی | حذف سورس آفلاین قبلی (اگر بود)
+  ansible.builtin.file:
+    path: "{{ gitlab_runner_apt_sources_file }}"
+    state: absent
+
+- name: مخزن داخلی | کلید GPG (اختیاری)
+  when: gitlab_apt_mirror_key_url | length > 0 or gitlab_apt_mirror_key_file | length > 0
+  block:
+    - name: مخزن داخلی | دانلود کلید از URL
+      ansible.builtin.get_url:
+        url: "{{ gitlab_apt_mirror_key_url }}"
+        dest: /usr/share/keyrings/gitlab-archive-keyring.asc
+        mode: "0644"
+      when: gitlab_apt_mirror_key_url | length > 0
+
+    - name: مخزن داخلی | کپی کلید از ماشین کنترل
+      ansible.builtin.copy:
+        src: "{{ gitlab_apt_mirror_key_file }}"
+        dest: /usr/share/keyrings/gitlab-archive-keyring.asc
+        mode: "0644"
+      when: gitlab_apt_mirror_key_file | length > 0
+
+- name: مخزن داخلی | افزودن سورس apt
+  ansible.builtin.copy:
+    dest: "{{ gitlab_runner_apt_sources_file }}"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # ساخته‌شده توسط Ansible (gitlab-infra) - مخزن apt داخلی
+      {{ gitlab_apt_mirror_line }}
+
+- name: مخزن داخلی | به‌روزرسانی کش apt
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 0
+
+- name: مخزن داخلی | بررسی وجود نسخهٔ runner در مخزن
+  ansible.builtin.command: apt-cache policy gitlab-runner
+  register: runner_mirror_policy
+  changed_when: false
+  failed_when: false
+
+- name: مخزن داخلی | خطای نسخهٔ موجود نبودن
+  ansible.builtin.fail:
+    msg: >-
+      نسخهٔ gitlab-runner={{ gitlab_runner_version }} در مخزن داخلی نیست
+      (به پکیج gitlab-runner-helper-images هم نیاز دارد).
+      نسخه را در gitlab_runner_version عوض کن یا gitlab_pkg_source=bundle بگذار.
+      خروجی apt: {{ runner_mirror_policy.stdout | default('') | truncate(300) }}
+  when: gitlab_runner_version not in (runner_mirror_policy.stdout | default(''))

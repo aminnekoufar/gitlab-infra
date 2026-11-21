@@ -1,0 +1,37 @@
+---
+# ---------- منابع (برای ۳ تا ۵ کاربر) ----------
+# 4 vCPU / 8GB RAM / 100GB SSD کافی است. این‌ها برای کم کردن مصرف تنظیم شده‌اند.
+gitlab_puma_workers: 2
+gitlab_sidekiq_concurrency: 5
+gitlab_postgres_shared_buffers: 2GB
+gitlab_prometheus_enable: false        # ~1GB RAM آزاد می‌کند؛ در این مقیاس لازم نیست
+
+# ---------- ایمیل ----------
+# اگر رله SMTP داخلی داری پرش کن، وگرنه خالی بگذار:
+# بدون SMTP، «فراموشی رمز» کار نمی‌کند و ادمین باید رمز را ریست کند (طبیعی است).
+gitlab_smtp_enable: false
+gitlab_smtp_address: ""
+gitlab_smtp_port: 25
+gitlab_smtp_user_name: ""
+gitlab_smtp_password: ""
+gitlab_smtp_domain: "intra.local"
+gitlab_smtp_tls: false
+gitlab_email_from: "gitlab@intra.local"
+gitlab_email_reply_to: "noreply@intra.local"
+
+# ---------- LDAP / AD (اختیاری) ----------
+gitlab_ldap_enable: false
+gitlab_ldap_host: "ldap.intra.local"
+gitlab_ldap_port: 389
+gitlab_ldap_uid: "sAMAccountName"
+gitlab_ldap_base: "DC=intra,DC=local"
+gitlab_ldap_bind_dn: ""
+# رمز bind در vault.yml نگه داشته می‌شود (vault_gitlab_ldap_bind_password)
+
+# ---------- بکاپ ----------
+gitlab_backup_enable_cron: true
+gitlab_backup_hour: 2
+gitlab_backup_minute: 30
+gitlab_backup_keep_time: 1209600      # ۱۴ روز (ثانیه)
+gitlab_backup_path: /var/opt/gitlab/backups
+# اگر NFS داخلی داری، مسیر را عوض کن؛ فقط مطمئن شو gitlab-psql به آن دسترسی دارد

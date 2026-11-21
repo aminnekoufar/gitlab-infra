@@ -1,0 +1,25 @@
+---
+- name: Docker | تنظیم daemon.json برای رجیستری داخلی
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    backup: true
+  notify: restart docker
+  when: >-
+    gitlab_runner_docker_insecure_registries | length > 0 or
+    gitlab_runner_docker_registry_mirrors | length > 0
+
+- name: Docker | اعتبارنامه رجیستری داخلی برای runner
+  ansible.builtin.copy:
+    content: "{{ vault_gitlab_runner_docker_config_json }}"
+    dest: /root/.docker/config.json
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  when:
+    - vault_gitlab_runner_docker_config_json is defined
+    - vault_gitlab_runner_docker_config_json | length > 0

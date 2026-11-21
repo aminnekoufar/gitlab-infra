@@ -1,0 +1,38 @@
+---
+# ---------- عمومی ----------
+timezone: Asia/Tehran
+common_manage_firewall: true
+common_firewall_ssh_port: "{{ ansible_port | default(22) }}"
+common_ntp_servers: []            # مثلا ["ntp1.intra.local"] - خالی = دست نزن
+common_update_cache: true         # اگر apt اینترانت جواب می‌دهد true بگذار
+
+# ---------- هویت سرویس ----------
+gitlab_fqdn: gitlab.intra.local   # باید در DNS داخلی رکورد A داشته باشد
+gitlab_scheme: http               # http یا https (برای https با CA داخلی به README نگاه کن)
+gitlab_external_url: "{{ gitlab_scheme }}://{{ gitlab_fqdn }}"
+gitlab_ssh_port: 22               # پورت SSH گیت برای git clone
+
+# ---------- نسخه‌ها (pin شده) ----------
+# این نسخه‌ها همان‌هایی هستند که offline/build-bundle.sh دانلود می‌کند
+gitlab_ce_version: "19.6.1-ce.0"
+gitlab_runner_version: "19.6.0-1"
+gitlab_ubuntu_codename: jammy     # jammy=22.04 ، noble=24.04
+gitlab_arch: amd64
+
+# ---------- منبع پکیج‌های GitLab ----------
+# bundle = tarball دست‌ساز (offline/build-bundle.sh)  |  mirror = مخزن apt داخلی
+gitlab_pkg_source: bundle
+# اگر mirror است، یک خط کامل منابع؛ آدرس و دایرکتوری‌ها را با میرور خودت عوض کن:
+#   اینترانت ساده:      "deb [trusted=yes] http://mirror.intra.local/gitlab jammy main"
+#   Nexus/Artifactory: "deb [trusted=yes] http://nexus.intra.local/repository/gitlab-apt/ jammy main"
+#   http (بدون TLS) نیاز به [trusted=yes] دارد؛ https + کلید امضا هم پشتیبانی می‌شود.
+gitlab_apt_mirror_line: ""
+# کلید GPG مخزن (اختیاری). اگر ست شود، [trusted=yes] لازم نیست.
+gitlab_apt_mirror_key_url: ""
+gitlab_apt_mirror_key_file: ""     # یا مسیر فایل کلید روی ماشین کنترل (.asc/.gpg)
+
+# ---------- باندل آفلاین (وقتی gitlab_pkg_source=bundle) ----------
+# مسیر tarball روی ماشینی که این playbook را اجرا می‌کند
+offline_bundle_src: "{{ playbook_dir }}/offline/dist/gitlab-offline-jammy.tar.gz"
+offline_repo_dir: /opt/gitlab-offline
+offline_repo_uri: "file:{{ offline_repo_dir }}"

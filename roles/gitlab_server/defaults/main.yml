@@ -1,0 +1,19 @@
+---
+gitlab_min_mem_mb: 7000
+gitlab_min_disk_gb: 40
+
+# نصب از مخزن فایلی آفلاین (بدون وابستگی به اینترنت)
+gitlab_apt_sources_file: /etc/apt/sources.list.d/gitlab-offline.list
+
+# TLS با CA داخلی (اگر gitlab_scheme=https)
+gitlab_tls_cert: ""
+gitlab_tls_key: ""
+
+# بررسی سلامت
+gitlab_health_validate_certs: false
+gitlab_health_retries: 60
+gitlab_health_delay: 10
+
+# مسیر ابزارها
+gitlab_ctl: /usr/bin/gitlab-ctl
+gitlab_backup_bin: /opt/gitlab/bin/gitlab-backup

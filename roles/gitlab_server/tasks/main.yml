@@ -1,0 +1,137 @@
+---
+- name: Preflight | منابع کافی
+  ansible.builtin.assert:
+    that:
+      - ansible_memtotal_mb | int >= gitlab_min_mem_mb | int
+      - ansible_processor_vcpus | int >= 2
+    fail_msg: >-
+      منابع کافی نیست: RAM={{ ansible_memtotal_mb }}MB (حداقل {{ gitlab_min_mem_mb }}MB)،
+      vCPU={{ ansible_processor_vcpus }}. GitLab CE بدون swap کافی بالا نمی‌آید.
+    quiet: true
+
+- name: Preflight | منبع پکیج معتبر است
+  ansible.builtin.assert:
+    that:
+      - gitlab_pkg_source in ['bundle', 'mirror']
+    fail_msg: "gitlab_pkg_source باید bundle یا mirror باشد (مقدار فعلی: {{ gitlab_pkg_source }})"
+    quiet: true
+
+- name: منبع پکیج | {{ gitlab_pkg_source }}
+  ansible.builtin.include_tasks: "repo-{{ gitlab_pkg_source }}.yml"
+
+- name: نصب | GitLab CE {{ gitlab_ce_version }}
+  ansible.builtin.apt:
+    name: "gitlab-ce={{ gitlab_ce_version }}"
+    state: present
+    update_cache: false
+  register: gitlab_install
+  notify: reconfigure gitlab
+
+- name: نصب | گیت‌لب از قبل نصب بوده و نسخهٔ آن pin شده است
+  ansible.builtin.debug:
+    msg: "gitlab-ce={{ gitlab_ce_version }} در حال حاضر نصب است."
+  when: not gitlab_install.changed
+
+- name: پیکربندی | gitlab.rb
+  ansible.builtin.template:
+    src: gitlab.rb.j2
+    dest: /etc/gitlab/gitlab.rb
+    owner: root
+    group: root
+    mode: "0600"
+    backup: true
+  notify: reconfigure gitlab
+
+- name: پیکربندی | اعمال فوری (اجرای handler)
+  ansible.builtin.meta: flush_handlers
+
+- name: سلامت | انتظار برای بالا آمدن رابط وب
+  ansible.builtin.uri:
+    url: "{{ gitlab_external_url }}/users/sign_in"
+    validate_certs: "{{ gitlab_health_validate_certs }}"
+    status_code: [200, 302]
+    timeout: 15
+  register: gitlab_health
+  until: gitlab_health.status in [200, 302]
+  retries: "{{ gitlab_health_retries }}"
+  delay: "{{ gitlab_health_delay }}"
+  changed_when: false
+
+- name: رمز root | بررسی ست‌شدن قبلی
+  ansible.builtin.stat:
+    path: /etc/gitlab/.root_password_managed
+  register: gitlab_root_marker
+
+- name: رمز root | تنظیم idempotent
+  ansible.builtin.command:
+    argv:
+      - /opt/gitlab/bin/gitlab-rails
+      - runner
+      - >-
+        u = User.find_by_username('root');
+        u.password = ENV['GITLAB_ROOT_PW'];
+        u.password_confirmation = ENV['GITLAB_ROOT_PW'];
+        u.save!;
+        puts 'root password updated'
+  environment:
+    GITLAB_ROOT_PW: "{{ vault_gitlab_root_password }}"
+  register: gitlab_root_pw
+  changed_when: "'root password updated' in gitlab_root_pw.stdout"
+  no_log: true
+  when: not gitlab_root_marker.stat.exists
+
+- name: رمز root | ثبت نشانگر
+  ansible.builtin.copy:
+    dest: /etc/gitlab/.root_password_managed
+    content: "managed by ansible\n"
+    owner: root
+    group: root
+    mode: "0600"
+  when: not gitlab_root_marker.stat.exists
+
+- name: بکاپ | ایجاد دایرکتوری
+  ansible.builtin.file:
+    path: "{{ gitlab_backup_path }}"
+    state: directory
+    owner: git
+    group: git
+    mode: "0700"
+  when: gitlab_backup_enable_cron
+
+- name: بکاپ | اسکریپت آرشیو کانفیگ و secretها
+  ansible.builtin.copy:
+    dest: /usr/local/bin/gitlab-config-backup
+    owner: root
+    group: root
+    mode: "0750"
+    content: |
+      #!/bin/bash
+      # بکاپ /etc/gitlab (gitlab.rb + secretها) — این‌ها در gitlab-backup نیستند
+      set -euo pipefail
+      DEST="{{ gitlab_backup_path }}"
+      STAMP="$(date +%Y%m%d%H%M)"
+      tar -czf "$DEST/etc-gitlab-$STAMP.tar.gz" -C / etc/gitlab --exclude=etc/gitlab/.root_password_managed
+      find "$DEST" -name 'etc-gitlab-*.tar.gz' -mtime +{{ (gitlab_backup_keep_time | int / 86400) | int }} -delete
+  when: gitlab_backup_enable_cron
+
+- name: بکاپ | زمان‌بندی روزانه
+  ansible.builtin.copy:
+    dest: /etc/cron.d/gitlab-backup
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      # ساخته‌شده توسط Ansible (gitlab-infra)
+      SHELL=/bin/sh
+      PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+      {{ gitlab_backup_minute }} {{ gitlab_backup_hour }} * * * root {{ gitlab_backup_bin }} create CRON=1 >> /var/log/gitlab/gitlab-backup.log 2>&1
+      {{ gitlab_backup_minute }} {{ gitlab_backup_hour }} * * * root /usr/local/bin/gitlab-config-backup
+  when: gitlab_backup_enable_cron
+
+- name: گزارش نهایی
+  ansible.builtin.debug:
+    msg:
+      - "GitLab: {{ gitlab_external_url }}"
+      - "نسخه: {{ gitlab_ce_version }}"
+      - "کاربر root / رمز: {{ 'همین حالا از vault ست شد' if (gitlab_root_pw.changed | default(false)) else 'قبلاً مدیریت شده' }}"
+      - "بکاپ روزانه: {{ gitlab_backup_path }} (نگهداری {{ (gitlab_backup_keep_time | int / 86400) | round(0, 'ceil') | int }} روز)"
